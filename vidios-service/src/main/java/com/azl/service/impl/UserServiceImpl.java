@@ -30,6 +30,15 @@ public class UserServiceImpl implements UserService {
 	private UsersMapper userMapper;
 	
 	@Autowired
+	private UsersFansMapper usersFansMapper;
+	
+	@Autowired
+	private UsersLikeVideosMapper usersLikeVideosMapper;
+	
+	@Autowired
+	private UsersReportMapper usersReportMapper;
+	
+	@Autowired
 	private Sid sid;
 	
 	@Transactional(propagation = Propagation.SUPPORTS)
@@ -47,7 +56,7 @@ public class UserServiceImpl implements UserService {
 	@Transactional(propagation = Propagation.REQUIRED)
 	@Override
 	public void saveUser(Users user) {
-
+		
 		String userId = sid.nextShort();
 		user.setId(userId);
 		userMapper.insert(user);
@@ -66,5 +75,112 @@ public class UserServiceImpl implements UserService {
 		return result;
 	}
 
+	@Transactional(propagation = Propagation.REQUIRED)
+	@Override
+	public void updateUserInfo(Users user) {
+		
+		Example userExample = new Example(Users.class);
+		Criteria criteria = userExample.createCriteria();
+		criteria.andEqualTo("id", user.getId());
+		userMapper.updateByExampleSelective(user, userExample);
+	}
+
+	@Transactional(propagation = Propagation.SUPPORTS)
+	@Override
+	public Users queryUserInfo(String userId) {
+		Example userExample = new Example(Users.class);
+		Criteria criteria = userExample.createCriteria();
+		criteria.andEqualTo("id", userId);
+		Users user = userMapper.selectOneByExample(userExample);
+		return user;
+	}
+
+	@Transactional(propagation = Propagation.SUPPORTS)
+	@Override
+	public boolean isUserLikeVideo(String userId, String videoId) {
+
+		if (StringUtils.isBlank(userId) || StringUtils.isBlank(videoId)) {
+			return false;
+		}
+		
+		Example example = new Example(UsersLikeVideos.class);
+		Criteria criteria = example.createCriteria();
+		
+		criteria.andEqualTo("userId", userId);
+		criteria.andEqualTo("videoId", videoId);
+		
+		List<UsersLikeVideos> list = usersLikeVideosMapper.selectByExample(example);
+		
+		if (list != null && list.size() >0) {
+			return true;
+		}
+		
+		return false;
+	}
+
+	@Transactional(propagation = Propagation.REQUIRED)
+	@Override
+	public void saveUserFanRelation(String userId, String fanId) {
+
+		String relId = sid.nextShort();
+		
+		UsersFans userFan = new UsersFans();
+		userFan.setId(relId);
+		userFan.setUserId(userId);
+		userFan.setFanId(fanId);
+		
+		usersFansMapper.insert(userFan);
+		
+		userMapper.addFansCount(userId);
+		userMapper.addFollersCount(fanId);
+		
+	}
+
+	@Transactional(propagation = Propagation.REQUIRED)
+	@Override
+	public void deleteUserFanRelation(String userId, String fanId) {
+		
+		Example example = new Example(UsersFans.class);
+		Criteria criteria = example.createCriteria();
+		
+		criteria.andEqualTo("userId", userId);
+		criteria.andEqualTo("fanId", fanId);
+		
+		usersFansMapper.deleteByExample(example);
+		
+		userMapper.reduceFansCount(userId);
+		userMapper.reduceFollersCount(fanId);
+		
+	}
+
+	@Override
+	public boolean queryIfFollow(String userId, String fanId) {
+
+		Example example = new Example(UsersFans.class);
+		Criteria criteria = example.createCriteria();
+		
+		criteria.andEqualTo("userId", userId);
+		criteria.andEqualTo("fanId", fanId);
+		
+		List<UsersFans> list = usersFansMapper.selectByExample(example);
+		
+		if (list != null && !list.isEmpty() && list.size() > 0) {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	@Transactional(propagation = Propagation.REQUIRED)
+	@Override
+	public void reportUser(UsersReport userReport) {
+		
+		String urId = sid.nextShort();
+		userReport.setId(urId);
+		userReport.setCreateDate(new Date());
+		
+		usersReportMapper.insert(userReport);
+	}
+	
 }
 
